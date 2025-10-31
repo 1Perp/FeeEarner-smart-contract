@@ -267,6 +267,7 @@ contract FeeEarner is
     {
         if (token == address(0)) revert ZeroAddress();
         if (amount == 0) revert ZeroAmount();
+        if (!isTokenAllowed[token]) revert TokenNotAllowed();
 
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance < amount) revert InsufficientBalance();
