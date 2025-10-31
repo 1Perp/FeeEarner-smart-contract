@@ -329,6 +329,31 @@ describe("FeeEarner", function () {
       ).to.be.revertedWithCustomError(feeEarner, "NotLiquidityManager");
     });
 
+    it("Should revert withdraw if token is removed (not allowed)", async function () {
+      const { feeEarner, usdt, user1, owner, liquidityManager } = await loadFixture(deployFeeEarnerFixture);
+      const amount = ethers.parseUnits("40", 6);
+
+      await usdt.connect(user1).approve(feeEarner.target, amount);
+      await feeEarner.connect(user1).contribute(usdt.target, amount);
+
+      // Remove token from allowlist, leaving balance on contract
+      await feeEarner.connect(owner).removeAllowedToken(usdt.target);
+
+      await expect(
+        feeEarner.connect(liquidityManager).withdraw(usdt.target, amount)
+      ).to.be.revertedWithCustomError(feeEarner, "TokenNotAllowed");
+    });
+
+    it("Should revert withdraw if token was never allowed", async function () {
+      const { feeEarner, dai, liquidityManager } = await loadFixture(deployFeeEarnerFixture);
+      // Mint directly to contract to simulate stray balance of non-allowed token
+      await dai.mint(feeEarner.target, ethers.parseUnits("5", 18));
+
+      await expect(
+        feeEarner.connect(liquidityManager).withdraw(dai.target, 1n)
+      ).to.be.revertedWithCustomError(feeEarner, "TokenNotAllowed");
+    });
+
     it("Should revert if withdrawing more than balance", async function () {
       const { feeEarner, usdt, user1, liquidityManager } = await loadFixture(deployFeeEarnerFixture);
       const amount = ethers.parseUnits("100", 6);
