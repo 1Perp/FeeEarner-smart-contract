@@ -118,12 +118,11 @@ contract FeeEarner is
         if (amount == 0) revert ZeroAmount();
         if (!isTokenAllowed[token]) revert TokenNotAllowed();
 
-        // Transfer tokens from user to contract
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-
-        // Update contributions
         userContributions[msg.sender][token] += amount;
         totalContributions[token] += amount;
+
+        // Interaction: transfer tokens from user to contract
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
         emit Contribution(msg.sender, token, amount);
     }
