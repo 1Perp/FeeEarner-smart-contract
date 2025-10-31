@@ -288,6 +288,14 @@ describe("FeeEarner", function () {
         feeEarner.connect(owner).setLiquidityManager(ethers.ZeroAddress)
       ).to.be.revertedWithCustomError(feeEarner, "ZeroAddress");
     });
+
+    it("Should revert if setting the same liquidity manager", async function () {
+      const { feeEarner, owner, liquidityManager } = await loadFixture(deployFeeEarnerFixture);
+
+      await expect(
+        feeEarner.connect(owner).setLiquidityManager(liquidityManager.address)
+      ).to.be.revertedWithCustomError(feeEarner, "LiquidityManagerUnchanged");
+    });
   });
 
   // Withdrawals

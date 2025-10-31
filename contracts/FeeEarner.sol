@@ -61,6 +61,7 @@ contract FeeEarner is
     error InsufficientBalance();
     error NotLiquidityManager();
     error TokenHasBalance();
+    error LiquidityManagerUnchanged();
 
     /// @notice Modifier to restrict access to liquidity manager only
     modifier onlyLiquidityManager() {
@@ -231,6 +232,7 @@ contract FeeEarner is
      */
     function setLiquidityManager(address newManager) external onlyOwner {
         if (newManager == address(0)) revert ZeroAddress();
+        if (newManager == liquidityManager) revert LiquidityManagerUnchanged();
         
         address oldManager = liquidityManager;
         liquidityManager = newManager;
