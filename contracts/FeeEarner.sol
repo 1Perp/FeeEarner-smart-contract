@@ -209,10 +209,6 @@ contract FeeEarner is
      */
     function removeAllowedToken(address token) external onlyOwner {
         if (!isTokenAllowed[token]) revert TokenNotFound();
-        
-        // Check if contract has any balance of this token
-        uint256 balance = IERC20(token).balanceOf(address(this));
-        if (balance > 0) revert TokenHasBalance();
 
         isTokenAllowed[token] = false;
 
