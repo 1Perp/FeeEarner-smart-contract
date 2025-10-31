@@ -371,6 +371,34 @@ describe("FeeEarner", function () {
 
       await expect(feeEarner.connect(liquidityManager).withdrawAll()).to.not.be.reverted;
     });
+
+    it("Should revert withdraw when paused", async function () {
+      const { feeEarner, usdt, user1, liquidityManager, owner } = await loadFixture(deployFeeEarnerFixture);
+      const amount = ethers.parseUnits("50", 6);
+
+      await usdt.connect(user1).approve(feeEarner.target, amount);
+      await feeEarner.connect(user1).contribute(usdt.target, amount);
+
+      await feeEarner.connect(owner).pause();
+
+      await expect(
+        feeEarner.connect(liquidityManager).withdraw(usdt.target, amount)
+      ).to.be.revertedWithCustomError(feeEarner, "EnforcedPause");
+    });
+
+    it("Should revert withdrawAll when paused", async function () {
+      const { feeEarner, usdt, user1, liquidityManager, owner } = await loadFixture(deployFeeEarnerFixture);
+      const amount = ethers.parseUnits("10", 6);
+
+      await usdt.connect(user1).approve(feeEarner.target, amount);
+      await feeEarner.connect(user1).contribute(usdt.target, amount);
+
+      await feeEarner.connect(owner).pause();
+
+      await expect(
+        feeEarner.connect(liquidityManager).withdrawAll()
+      ).to.be.revertedWithCustomError(feeEarner, "EnforcedPause");
+    });
   });
 
   // Pause / Unpause

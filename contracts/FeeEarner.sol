@@ -260,6 +260,7 @@ contract FeeEarner is
     function withdraw(address token, uint256 amount) 
         external 
         onlyLiquidityManager 
+        whenNotPaused
         nonReentrant 
     {
         if (token == address(0)) revert ZeroAddress();
@@ -276,7 +277,7 @@ contract FeeEarner is
     /**
      * @notice Withdraw all tokens from the contract
      */
-    function withdrawAll() external onlyLiquidityManager nonReentrant {
+    function withdrawAll() external onlyLiquidityManager whenNotPaused nonReentrant {
         uint256 length = allowedTokens.length;
         
         for (uint256 i = 0; i < length; i++) {
