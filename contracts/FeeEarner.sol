@@ -98,6 +98,7 @@ contract FeeEarner is
 
         // Add initial tokens
         for (uint256 i = 0; i < initialTokens.length; i++) {
+            if (isTokenAllowed[initialTokens[i]]) revert TokenAlreadyAdded();
             _addToken(initialTokens[i]);
         }
     }

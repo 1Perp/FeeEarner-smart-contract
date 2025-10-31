@@ -76,6 +76,21 @@ describe("FeeEarner", function () {
         )
       ).to.be.revertedWithCustomError(FeeEarner, "ZeroAddress");
     });
+
+    it("Should revert if initialTokens contain duplicates", async function () {
+      const [owner, liquidityManager] = await ethers.getSigners();
+      const MockERC20 = await ethers.getContractFactory("MockERC20");
+      const t = await MockERC20.deploy("Tether USD", "USDT", 6);
+      const FeeEarner = await ethers.getContractFactory("FeeEarner");
+
+      await expect(
+        upgrades.deployProxy(
+          FeeEarner,
+          [owner.address, liquidityManager.address, [t.target, t.target]],
+          { initializer: "initialize" }
+        )
+      ).to.be.revertedWithCustomError(FeeEarner, "TokenAlreadyAdded");
+    });
   });
 
   // Approve and contribute
