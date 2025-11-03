@@ -580,6 +580,71 @@ describe("FeeEarner", function () {
     });
   });
 
+  // Test withdrawAndRemoveToken function
+  describe("withdrawAndRemoveToken", function () {
+    it("Should allow owner to withdraw balance and remove token (Happy Path)", async function () {
+      const { feeEarner, usdt, user1, owner, liquidityManager } = await loadFixture(deployFeeEarnerFixture);
+      const amount = ethers.parseUnits("150", 6);
+
+      // 1. Contribute tokens to the contract
+      await usdt.connect(user1).approve(feeEarner.target, amount);
+      await feeEarner.connect(user1).contribute(usdt.target, amount);
+
+      const lmBalBefore = await usdt.balanceOf(liquidityManager.address);
+      const contractBalBefore = await feeEarner.getTokenBalance(usdt.target);
+      expect(contractBalBefore).to.equal(amount);
+
+      // 2. Owner calls the new function
+      await expect(feeEarner.connect(owner).withdrawAndRemoveToken(usdt.target))
+        .to.emit(feeEarner, "Withdrawal")
+        .withArgs(usdt.target, amount, liquidityManager.address)
+        .and.to.emit(feeEarner, "TokenRemoved")
+        .withArgs(usdt.target);
+      
+      // 3. Validate state
+      expect(await usdt.balanceOf(liquidityManager.address)).to.equal(lmBalBefore + amount);
+      expect(await feeEarner.getTokenBalance(usdt.target)).to.equal(0);
+      expect(await feeEarner.isAllowedToken(usdt.target)).to.be.false;
+      const allowed = await feeEarner.getAllowedTokens();
+      expect(allowed.includes(usdt.target)).to.be.false;
+      expect(allowed.length).to.equal(1); 
+    });
+
+    it("Should work even if token balance is zero", async function () {
+      const { feeEarner, usdt, owner, liquidityManager } = await loadFixture(deployFeeEarnerFixture);
+      
+      const lmBalBefore = await usdt.balanceOf(liquidityManager.address);
+      expect(await feeEarner.getTokenBalance(usdt.target)).to.equal(0);
+
+      await expect(feeEarner.connect(owner).withdrawAndRemoveToken(usdt.target))
+        .to.emit(feeEarner, "TokenRemoved")
+        .withArgs(usdt.target)
+        .and.not.to.emit(feeEarner, "Withdrawal"); // Should not trigger withdrawal event
+      
+      expect(await usdt.balanceOf(liquidityManager.address)).to.equal(lmBalBefore);
+      expect(await feeEarner.isAllowedToken(usdt.target)).to.be.false;
+    });
+
+    it("Should revert if called by non-owner", async function () {
+      const { feeEarner, usdt, user1, liquidityManager } = await loadFixture(deployFeeEarnerFixture);
+      
+      await expect(
+        feeEarner.connect(user1).withdrawAndRemoveToken(usdt.target)
+      ).to.be.revertedWithCustomError(feeEarner, "OwnableUnauthorizedAccount");
+
+      await expect(
+        feeEarner.connect(liquidityManager).withdrawAndRemoveToken(usdt.target)
+      ).to.be.revertedWithCustomError(feeEarner, "OwnableUnauthorizedAccount");
+    });
+
+    it("Should revert if token is not found (not allowed)", async function () {
+      const { feeEarner, dai, owner } = await loadFixture(deployFeeEarnerFixture);
+      await expect(
+        feeEarner.connect(owner).withdrawAndRemoveToken(dai.target)
+      ).to.be.revertedWithCustomError(feeEarner, "TokenNotFound");
+    });
+  });
+
   // withdrawAll edge cases
   describe("withdrawAll edge cases", function () {
     it("Should not revert when allowedTokens is empty", async function () {
