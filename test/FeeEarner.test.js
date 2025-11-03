@@ -54,7 +54,7 @@ describe("FeeEarner", function () {
     it("Should revert if initialized with zero address owner", async function () {
       const { liquidityManager, usdt, usdc } = await loadFixture(deployFeeEarnerFixture);
       const FeeEarner = await ethers.getContractFactory("FeeEarner");
-      
+
       await expect(
         upgrades.deployProxy(
           FeeEarner,
@@ -67,7 +67,7 @@ describe("FeeEarner", function () {
     it("Should revert if initialized with zero address liquidity manager", async function () {
       const { owner, usdt, usdc } = await loadFixture(deployFeeEarnerFixture);
       const FeeEarner = await ethers.getContractFactory("FeeEarner");
-      
+
       await expect(
         upgrades.deployProxy(
           FeeEarner,
@@ -227,29 +227,16 @@ describe("FeeEarner", function () {
       expect(allowedTokens.length).to.equal(1);
     });
 
-    it("Should allow removing token even when it has non-zero balance", async function () {
-      const { feeEarner, usdt, user1, owner, liquidityManager } = await loadFixture(deployFeeEarnerFixture);
+    it("Should revert if removing token with non-zero balance", async function () {
+      const { feeEarner, usdt, user1, owner } = await loadFixture(deployFeeEarnerFixture);
       const amount = ethers.parseUnits("100", 6);
 
       await usdt.connect(user1).approve(feeEarner.target, amount);
       await feeEarner.connect(user1).contribute(usdt.target, amount);
 
-      const lmBalBefore = await usdt.balanceOf(liquidityManager.address);
-
-      await expect(feeEarner.connect(owner).removeAllowedToken(usdt.target))
-        .to.emit(feeEarner, "TokenRemoved")
-        .withArgs(usdt.target);
-
-      // Token is no longer allowed
-      expect(await feeEarner.isAllowedToken(usdt.target)).to.be.false;
-
-      // Balance remains in contract after removal
-      expect(await usdt.balanceOf(feeEarner.target)).to.equal(amount);
-
-      // withdrawAll no longer sweeps removed token
-      await expect(feeEarner.connect(liquidityManager).withdrawAll()).to.not.be.reverted;
-      expect(await usdt.balanceOf(liquidityManager.address)).to.equal(lmBalBefore);
-      expect(await usdt.balanceOf(feeEarner.target)).to.equal(amount);
+      await expect(
+        feeEarner.connect(owner).removeAllowedToken(usdt.target)
+      ).to.be.revertedWithCustomError(feeEarner, "TokenHasBalance");
     });
 
     it("Should revert if removing non-existent token", async function () {
@@ -337,7 +324,7 @@ describe("FeeEarner", function () {
       await feeEarner.connect(user1).contribute(usdt.target, amount);
 
       // Remove token from allowlist, leaving balance on contract
-      await feeEarner.connect(owner).removeAllowedToken(usdt.target);
+      await feeEarner.connect(owner).withdrawAndRemoveToken(usdt.target)
 
       await expect(
         feeEarner.connect(liquidityManager).withdraw(usdt.target, amount)

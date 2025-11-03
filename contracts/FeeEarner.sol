@@ -211,6 +211,10 @@ contract FeeEarner is
     function removeAllowedToken(address token) external onlyOwner {
         if (!isTokenAllowed[token]) revert TokenNotFound();
 
+        // Check if contract has any balance of this token
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        if (balance > 0) revert TokenHasBalance();
+
         isTokenAllowed[token] = false;
 
         // Remove from array
@@ -274,6 +278,42 @@ contract FeeEarner is
         IERC20(token).safeTransfer(liquidityManager, amount);
 
         emit Withdrawal(token, amount, liquidityManager);
+    }
+
+    /**
+     * @notice Withdraws all remaining balance of a token and removes it from
+     *  the allowed list.
+     * @dev This function is atomic and prevents dust attacks that could block
+     *  simple 'removeAllowedToken'. Funds are sent to the liquidityManager.
+     * @param token Address of the token to withdraw and remove
+     */
+    function withdrawAndRemoveToken(address token)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        if (!isTokenAllowed[token]) revert TokenNotFound();
+
+        // 1. Withdraw any remaining balance to the liquidity manager
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        if (balance > 0) {
+            // Note: Transfer to 'liquidityManager', NOT 'msg.sender' (owner)
+            IERC20(token).safeTransfer(liquidityManager, balance);
+            emit Withdrawal(token, balance, liquidityManager);
+        }
+
+        // 2. Remove the token from the list
+        isTokenAllowed[token] = false;
+
+        for (uint256 i = 0; i < allowedTokens.length; i++) {
+            if (allowedTokens[i] == token) {
+                allowedTokens[i] = allowedTokens[allowedTokens.length - 1];
+                allowedTokens.pop();
+                break;
+            }
+        }
+
+        emit TokenRemoved(token);
     }
 
     /**
